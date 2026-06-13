@@ -165,6 +165,12 @@ const avatarBg = (id) => avatarColors[(id||0) % avatarColors.length];
 const getInitials = (n,a) => ((n||'')[0]+(a||'')[0]||'?').toUpperCase();
 const dayNames = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
 const months = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+const monthsFull = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+const fmtEsp = (dateStr) => {
+  if (!dateStr) return '';
+  const [y,m,d] = dateStr.split('-');
+  return `${parseInt(d)} de ${monthsFull[parseInt(m)-1]} de ${y}`;
+};
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function StatusBadge({estado}) {
@@ -174,7 +180,7 @@ function StatusBadge({estado}) {
 }
 
 function WaBtn({patient, vacuna}) {
-  const msg = encodeURIComponent(`Hola ${patient?.nombre}, le recordamos su vacuna *${vacuna?.vacuna}* programada para el ${vacuna?.proxima_fecha||'próximamente'}. Por favor confirme su asistencia. Clínica VacunaControl.`);
+  const msg = encodeURIComponent(`Hola ${patient?.nombre}, le recordamos su vacuna *${vacuna?.vacuna}* programada para el ${vacuna?.proxima_fecha ? fmtEsp(vacuna.proxima_fecha) : 'próximamente'}. Por favor confirme su asistencia. Clínica VacunaControl.`);
   const url = `https://wa.me/${(patient?.whatsapp||'').replace(/\D/g,'')}?text=${msg}`;
   return <a href={url} target="_blank" rel="noopener" className="btn btn-sm btn-wa"><i className="ti ti-brand-whatsapp"></i> WhatsApp</a>;
 }
