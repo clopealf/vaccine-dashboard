@@ -8,7 +8,6 @@
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css"/>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -166,12 +165,6 @@ const avatarBg = (id) => avatarColors[(id||0) % avatarColors.length];
 const getInitials = (n,a) => ((n||'')[0]+(a||'')[0]||'?').toUpperCase();
 const dayNames = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
 const months = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
-const monthsFull = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
-const fmtEsp = (dateStr) => {
-  if (!dateStr) return '';
-  const [y,m,d] = dateStr.split('-');
-  return `${parseInt(d)} de ${monthsFull[parseInt(m)-1]} de ${y}`;
-};
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function StatusBadge({estado}) {
@@ -181,7 +174,7 @@ function StatusBadge({estado}) {
 }
 
 function WaBtn({patient, vacuna}) {
-  const msg = encodeURIComponent(`Hola ${patient?.nombre}, le recordamos su vacuna *${vacuna?.vacuna}* programada para el ${vacuna?.proxima_fecha ? fmtEsp(vacuna.proxima_fecha) : 'próximamente'}. Por favor confirme su asistencia. Clínica VacunaControl.`);
+  const msg = encodeURIComponent(`Hola ${patient?.nombre}, le recordamos su vacuna *${vacuna?.vacuna}* programada para el ${vacuna?.proxima_fecha||'próximamente'}. Por favor confirme su asistencia. Clínica VacunaControl.`);
   const url = `https://wa.me/${(patient?.whatsapp||'').replace(/\D/g,'')}?text=${msg}`;
   return <a href={url} target="_blank" rel="noopener" className="btn btn-sm btn-wa"><i className="ti ti-brand-whatsapp"></i> WhatsApp</a>;
 }
@@ -606,191 +599,6 @@ function AlertsView({patients, vaccines}) {
 }
 
 // ─── APP ──────────────────────────────────────────────────────────────────────
-// ─── GRAFICAS VIEW ────────────────────────────────────────────────────────────
-function GraficasView({patients, vaccines}) {
-  const canvasRefs = { mes: useRef(), estado: useRef(), vacuna: useRef(), ingreso: useRef() };
-  const chartRefs = { mes: useRef(), estado: useRef(), vacuna: useRef(), ingreso: useRef() };
-
-  useEffect(() => {
-    if (!window.Chart) return;
-    const MONTHS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
-    const currentYear = today.getFullYear();
-
-    // 1. Vacunas por mes (año actual)
-    const porMes = Array(12).fill(0);
-    const porMesCumplidas = Array(12).fill(0);
-    vaccines.forEach(v => {
-      if (!v.fecha_aplicacion) return;
-      const d = new Date(v.fecha_aplicacion);
-      if (d.getFullYear() !== currentYear) return;
-      porMes[d.getMonth()]++;
-      if (v.estado === 'cumplida') porMesCumplidas[d.getMonth()]++;
-    });
-
-    // 2. Por estado
-    const cumplidas = vaccines.filter(v=>v.estado==='cumplida').length;
-    const pendientes = vaccines.filter(v=>v.estado==='pendiente').length;
-    const vencidas = vaccines.filter(v=>v.estado==='vencida').length;
-
-    // 3. Top vacunas
-    const vacCount = {};
-    vaccines.forEach(v=>{ vacCount[v.vacuna]=(vacCount[v.vacuna]||0)+1; });
-    const vacSorted = Object.entries(vacCount).sort((a,b)=>b[1]-a[1]).slice(0,6);
-
-    // 4. Ingresos por mes
-    const ingresoMes = Array(12).fill(0);
-    vaccines.filter(v=>v.estado==='cumplida').forEach(v=>{
-      if (!v.fecha_aplicacion) return;
-      const d = new Date(v.fecha_aplicacion);
-      if (d.getFullYear()===currentYear) ingresoMes[d.getMonth()]+=(+v.valor||0);
-    });
-
-    const destroy = (ref) => { if (ref.current) { ref.current.destroy(); ref.current=null; } };
-
-    // Chart 1 — vacunas por mes
-    destroy(chartRefs.mes);
-    if (canvasRefs.mes.current) {
-      chartRefs.mes.current = new window.Chart(canvasRefs.mes.current, {
-        type: 'bar',
-        data: {
-          labels: MONTHS,
-          datasets: [
-            { label: 'Total', data: porMes, backgroundColor: '#bfdbfe', borderColor: '#2563eb', borderWidth: 1.5, borderRadius: 4 },
-            { label: 'Cumplidas', data: porMesCumplidas, backgroundColor: '#bbf7d0', borderColor: '#16a34a', borderWidth: 1.5, borderRadius: 4 }
-          ]
-        },
-        options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false} }, scales:{ y:{ beginAtZero:true, ticks:{stepSize:1} } } }
-      });
-    }
-
-    // Chart 2 — estados (donut)
-    destroy(chartRefs.estado);
-    if (canvasRefs.estado.current) {
-      chartRefs.estado.current = new window.Chart(canvasRefs.estado.current, {
-        type: 'doughnut',
-        data: {
-          labels: ['Cumplidas','Pendientes','Vencidas'],
-          datasets:[{ data:[cumplidas,pendientes,vencidas], backgroundColor:['#16a34a','#d97706','#dc2626'], borderWidth:0, hoverOffset:6 }]
-        },
-        options:{ responsive:true, maintainAspectRatio:false, cutout:'65%', plugins:{legend:{display:false}} }
-      });
-    }
-
-    // Chart 3 — top vacunas (horizontal bar)
-    destroy(chartRefs.vacuna);
-    if (canvasRefs.vacuna.current) {
-      chartRefs.vacuna.current = new window.Chart(canvasRefs.vacuna.current, {
-        type: 'bar',
-        data: {
-          labels: vacSorted.map(v=>v[0].length>18?v[0].slice(0,18)+'…':v[0]),
-          datasets:[{ label:'Aplicaciones', data:vacSorted.map(v=>v[1]), backgroundColor:['#bfdbfe','#ddd6fe','#a5f3fc','#bbf7d0','#fde68a','#fecaca'], borderRadius:4 }]
-        },
-        options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ x:{beginAtZero:true,ticks:{stepSize:1}} } }
-      });
-    }
-
-    // Chart 4 — ingresos por mes
-    destroy(chartRefs.ingreso);
-    if (canvasRefs.ingreso.current) {
-      chartRefs.ingreso.current = new window.Chart(canvasRefs.ingreso.current, {
-        type: 'line',
-        data: {
-          labels: MONTHS,
-          datasets:[{ label:'Ingresos $', data:ingresoMes, borderColor:'#7c3aed', backgroundColor:'#f5f3ff', borderWidth:2, fill:true, tension:.4, pointBackgroundColor:'#7c3aed', pointRadius:4 }]
-        },
-        options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ y:{beginAtZero:true, ticks:{callback:v=>'$'+v.toFixed(0)}} } }
-      });
-    }
-
-    return () => { Object.values(chartRefs).forEach(destroy); };
-  }, [vaccines]);
-
-  const cumplidas = vaccines.filter(v=>v.estado==='cumplida').length;
-  const pendientes = vaccines.filter(v=>v.estado==='pendiente').length;
-  const vencidas = vaccines.filter(v=>v.estado==='vencida').length;
-  const totalIngresos = vaccines.filter(v=>v.estado==='cumplida').reduce((s,v)=>s+(+v.valor||0),0);
-  const currentYear = today.getFullYear();
-
-  return (
-    <div>
-      <div className="topbar">
-        <div><h2>Gráficas</h2><p>Estadísticas de vacunación — {currentYear}</p></div>
-      </div>
-
-      {vaccines.length===0 && (
-        <div className="empty-state"><i className="ti ti-chart-bar"></i><p style={{fontWeight:500}}>Sin datos aún</p><p style={{fontSize:13}}>Registra vacunas para ver las gráficas</p></div>
-      )}
-
-      {vaccines.length>0 && <>
-        {/* Métricas rápidas */}
-        <div className="metrics-grid" style={{marginBottom:24}}>
-          <div className="metric-card accent"><div className="metric-label">Total vacunas</div><div className="metric-value">{vaccines.length}</div><div className="metric-sub">registradas</div></div>
-          <div className="metric-card success"><div className="metric-label">Cumplidas</div><div className="metric-value">{cumplidas}</div><div className="metric-sub">{vaccines.length>0?Math.round(cumplidas/vaccines.length*100):0}% del total</div></div>
-          <div className="metric-card danger"><div className="metric-label">Vencidas</div><div className="metric-value">{vencidas}</div><div className="metric-sub">{vaccines.length>0?Math.round(vencidas/vaccines.length*100):0}% del total</div></div>
-          <div className="metric-card warn"><div className="metric-label">Ingresos {currentYear}</div><div className="metric-value">${totalIngresos.toFixed(2)}</div><div className="metric-sub">vacunas cobradas</div></div>
-        </div>
-
-        {/* Fila 1 — barras por mes + donut estado */}
-        <div className="grid-2" style={{marginBottom:24}}>
-          <div className="card">
-            <div className="card-header">
-              <span className="card-title"><i className="ti ti-chart-bar" style={{marginRight:6,color:'var(--c-accent)'}}></i>Vacunas por mes — {currentYear}</span>
-            </div>
-            <div style={{display:'flex',gap:16,marginBottom:12,fontSize:12,color:'var(--c-muted)'}}>
-              <span><span style={{display:'inline-block',width:10,height:10,background:'#bfdbfe',border:'2px solid #2563eb',borderRadius:2,marginRight:4,verticalAlign:'middle'}}></span>Total</span>
-              <span><span style={{display:'inline-block',width:10,height:10,background:'#bbf7d0',border:'2px solid #16a34a',borderRadius:2,marginRight:4,verticalAlign:'middle'}}></span>Cumplidas</span>
-            </div>
-            <div style={{position:'relative',height:220}}>
-              <canvas ref={canvasRefs.mes} role="img" aria-label="Gráfica de vacunas por mes"></canvas>
-            </div>
-          </div>
-
-          <div className="card">
-            <div className="card-header">
-              <span className="card-title"><i className="ti ti-chart-donut" style={{marginRight:6,color:'var(--c-purple)'}}></i>Estado de vacunas</span>
-            </div>
-            <div style={{display:'flex',gap:16,marginBottom:12,fontSize:12,color:'var(--c-muted)'}}>
-              <span><span style={{display:'inline-block',width:10,height:10,background:'#16a34a',borderRadius:2,marginRight:4,verticalAlign:'middle'}}></span>Cumplidas {cumplidas}</span>
-              <span><span style={{display:'inline-block',width:10,height:10,background:'#d97706',borderRadius:2,marginRight:4,verticalAlign:'middle'}}></span>Pendientes {pendientes}</span>
-              <span><span style={{display:'inline-block',width:10,height:10,background:'#dc2626',borderRadius:2,marginRight:4,verticalAlign:'middle'}}></span>Vencidas {vencidas}</span>
-            </div>
-            <div style={{position:'relative',height:220,display:'flex',alignItems:'center',justifyContent:'center'}}>
-              <canvas ref={canvasRefs.estado} role="img" aria-label="Gráfica de estado de vacunas"></canvas>
-              <div style={{position:'absolute',textAlign:'center',pointerEvents:'none'}}>
-                <div style={{fontSize:24,fontWeight:600,color:'var(--c-text)'}}>{vaccines.length}</div>
-                <div style={{fontSize:11,color:'var(--c-muted)'}}>total</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Fila 2 — top vacunas + ingresos */}
-        <div className="grid-2">
-          <div className="card">
-            <div className="card-header">
-              <span className="card-title"><i className="ti ti-needle" style={{marginRight:6,color:'var(--c-info)'}}></i>Vacunas más aplicadas</span>
-            </div>
-            <div style={{position:'relative',height:220}}>
-              <canvas ref={canvasRefs.vacuna} role="img" aria-label="Gráfica de vacunas más aplicadas"></canvas>
-            </div>
-          </div>
-
-          <div className="card">
-            <div className="card-header">
-              <span className="card-title"><i className="ti ti-cash" style={{marginRight:6,color:'var(--c-purple)'}}></i>Ingresos por mes — {currentYear}</span>
-            </div>
-            <div style={{position:'relative',height:220}}>
-              <canvas ref={canvasRefs.ingreso} role="img" aria-label="Gráfica de ingresos por mes"></canvas>
-            </div>
-          </div>
-        </div>
-      </>}
-
-      <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
-    </div>
-  );
-}
-
 function App() {
   const [user, setUser] = useState(null);
   const [view, setView] = useState('dashboard');
@@ -858,7 +666,6 @@ function App() {
     {id:'vaccines',icon:'ti-needle',label:'Vacunas'},
     {id:'patients',icon:'ti-users',label:'Pacientes'},
     {id:'alerts',icon:'ti-bell',label:'Avisos',badge:alertCount},
-    {id:'graficas',icon:'ti-chart-bar',label:'Gráficas'},
   ];
 
   return (
@@ -896,7 +703,6 @@ function App() {
             {view==='vaccines'&&<VacunasView patients={patients} vaccines={vaccines} onAddVaccine={()=>setShowVaccineModal(true)} onDelete={deleteVaccine}/>}
             {view==='patients'&&<PatientsView patients={patients} vaccines={vaccines} onAddPatient={addPatient} onDeletePatient={deletePatient}/>}
             {view==='alerts'&&<AlertsView patients={patients} vaccines={vaccines}/>}
-            {view==='graficas'&&<GraficasView patients={patients} vaccines={vaccines}/>}
           </>
         )}
       </main>
