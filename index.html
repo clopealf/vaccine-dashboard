@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>VacunaControl — Dashboard Clínica</title>
+<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css"/>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --c-bg: #f5f7fa; --c-surface: #ffffff; --c-border: #e2e8f0;
+    --c-text: #1a202c; --c-muted: #718096; --c-accent: #2563eb;
+    --c-success: #16a34a; --c-success-bg: #f0fdf4; --c-success-border: #bbf7d0;
+    --c-danger: #dc2626; --c-danger-bg: #fef2f2; --c-danger-border: #fecaca;
+    --c-warn: #d97706; --c-warn-bg: #fffbeb; --c-warn-border: #fde68a;
+    --c-info: #0891b2; --c-info-bg: #ecfeff; --c-info-border: #a5f3fc;
+    --c-purple: #7c3aed; --c-purple-bg: #f5f3ff;
+    --radius: 10px; --radius-sm: 6px;
+    --shadow: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.04);
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--c-bg); color: var(--c-text); min-height: 100vh; }
+  #root { min-height: 100vh; }
+
+  /* Layout */
+  .sidebar { position: fixed; left: 0; top: 0; bottom: 0; width: 220px; background: #1e293b; padding: 0; z-index: 100; display: flex; flex-direction: column; }
+  .sidebar-logo { padding: 20px 20px 16px; border-bottom: 1px solid #334155; }
+  .sidebar-logo h1 { font-size: 15px; font-weight: 600; color: #f1f5f9; letter-spacing: -.2px; }
+  .sidebar-logo p { font-size: 11px; color: #64748b; margin-top: 2px; }
+  .sidebar-nav { flex: 1; padding: 12px 8px; display: flex; flex-direction: column; gap: 2px; }
+  .nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: var(--radius-sm); cursor: pointer; color: #94a3b8; font-size: 13px; font-weight: 400; transition: all .15s; border: none; background: none; width: 100%; text-align: left; }
+  .nav-item:hover { background: #334155; color: #f1f5f9; }
+  .nav-item.active { background: #2563eb; color: #fff; font-weight: 500; }
+  .nav-item i { font-size: 16px; }
+  .main { margin-left: 220px; min-height: 100vh; padding: 24px; }
+  .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+  .topbar h2 { font-size: 20px; font-weight: 600; color: var(--c-text); }
+  .topbar p { font-size: 13px; color: var(--c-muted); margin-top: 2px; }
+
+  /* Cards */
+  .card { background: var(--c-surface); border: 1px solid var(--c-border); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow); }
+  .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .card-title { font-size: 14px; font-weight: 600; color: var(--c-text); }
+
+  /* Metric cards */
+  .metrics-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+  .metric-card { background: var(--c-surface); border: 1px solid var(--c-border); border-radius: var(--radius); padding: 16px 20px; }
+  .metric-label { font-size: 12px; color: var(--c-muted); font-weight: 500; text-transform: uppercase; letter-spacing: .4px; }
+  .metric-value { font-size: 28px; font-weight: 600; margin-top: 4px; }
+  .metric-sub { font-size: 12px; color: var(--c-muted); margin-top: 4px; }
+  .metric-card.success .metric-value { color: var(--c-success); }
+  .metric-card.danger .metric-value { color: var(--c-danger); }
+  .metric-card.warn .metric-value { color: var(--c-warn); }
+  .metric-card.accent .metric-value { color: var(--c-accent); }
+
+  /* Grid layouts */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px; }
+  .grid-3-2 { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-bottom: 24px; }
+
+  /* Table */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { background: #f8fafc; padding: 10px 12px; text-align: left; font-weight: 600; font-size: 11px; color: var(--c-muted); text-transform: uppercase; letter-spacing: .5px; border-bottom: 1px solid var(--c-border); }
+  td { padding: 11px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #f8fafc; }
+
+  /* Badges */
+  .badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 500; }
+  .badge-success { background: var(--c-success-bg); color: var(--c-success); border: 1px solid var(--c-success-border); }
+  .badge-danger { background: var(--c-danger-bg); color: var(--c-danger); border: 1px solid var(--c-danger-border); }
+  .badge-warn { background: var(--c-warn-bg); color: var(--c-warn); border: 1px solid var(--c-warn-border); }
+  .badge-info { background: var(--c-info-bg); color: var(--c-info); border: 1px solid var(--c-info-border); }
+  .badge-purple { background: var(--c-purple-bg); color: var(--c-purple); border: 1px solid #ddd6fe; }
+
+  /* Buttons */
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 500; cursor: pointer; transition: all .15s; border: 1px solid transparent; }
+  .btn-primary { background: var(--c-accent); color: #fff; }
+  .btn-primary:hover { background: #1d4ed8; }
+  .btn-outline { background: transparent; color: var(--c-text); border-color: var(--c-border); }
+  .btn-outline:hover { background: #f8fafc; }
+  .btn-danger { background: transparent; color: var(--c-danger); border-color: var(--c-danger-border); }
+  .btn-danger:hover { background: var(--c-danger-bg); }
+  .btn-success { background: transparent; color: var(--c-success); border-color: var(--c-success-border); }
+  .btn-success:hover { background: var(--c-success-bg); }
+  .btn-sm { padding: 5px 10px; font-size: 12px; }
+  .btn-icon { padding: 6px 8px; }
+
+  /* Form elements */
+  .form-group { margin-bottom: 16px; }
+  .form-label { display: block; font-size: 12px; font-weight: 600; color: var(--c-muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .4px; }
+  .form-input { width: 100%; padding: 9px 12px; border: 1px solid var(--c-border); border-radius: var(--radius-sm); font-size: 14px; color: var(--c-text); background: var(--c-surface); transition: border-color .15s; outline: none; }
+  .form-input:focus { border-color: var(--c-accent); box-shadow: 0 0 0 3px rgba(37,99,235,.1); }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+
+  /* Modal */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,.5); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; }
+  .modal { background: var(--c-surface); border-radius: var(--radius); padding: 28px; width: 100%; max-width: 580px; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,.2); }
+  .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+  .modal-title { font-size: 17px; font-weight: 600; }
+  .modal-close { background: none; border: none; cursor: pointer; color: var(--c-muted); padding: 4px; border-radius: 4px; }
+  .modal-close:hover { color: var(--c-text); background: #f1f5f9; }
+  .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; border-top: 1px solid var(--c-border); padding-top: 20px; }
+
+  /* Alert banner */
+  .alert { display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px; border-radius: var(--radius-sm); margin-bottom: 8px; font-size: 13px; }
+  .alert-danger { background: var(--c-danger-bg); border: 1px solid var(--c-danger-border); color: var(--c-danger); }
+  .alert-warn { background: var(--c-warn-bg); border: 1px solid var(--c-warn-border); color: var(--c-warn); }
+  .alert i { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+  .alert-body { flex: 1; }
+  .alert-body strong { font-weight: 600; }
+  .alert-body p { color: var(--c-muted); margin-top: 2px; font-size: 12px; }
+
+  /* Weekly schedule */
+  .schedule-grid { display: grid; grid-template-columns: 60px repeat(7, 1fr); gap: 1px; background: var(--c-border); border: 1px solid var(--c-border); border-radius: var(--radius-sm); overflow: hidden; }
+  .sch-header { background: #f8fafc; padding: 8px 6px; text-align: center; font-size: 11px; font-weight: 600; color: var(--c-muted); }
+  .sch-time { background: #f8fafc; padding: 8px 6px; text-align: right; font-size: 11px; color: var(--c-muted); padding-right: 10px; }
+  .sch-cell { background: var(--c-surface); padding: 3px; min-height: 40px; }
+  .sch-appt { background: #dbeafe; color: #1e40af; border-radius: 4px; padding: 3px 6px; font-size: 10px; font-weight: 500; margin-bottom: 2px; cursor: pointer; border-left: 3px solid #2563eb; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sch-appt:hover { background: #bfdbfe; }
+  .sch-appt.vencida { background: #fee2e2; color: #991b1b; border-left-color: #dc2626; }
+  .sch-appt.pendiente { background: #fef9c3; color: #854d0e; border-left-color: #ca8a04; }
+
+  /* Avatar */
+  .avatar { width: 32px; height: 32px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; flex-shrink: 0; }
+
+  /* Search */
+  .search-wrap { position: relative; }
+  .search-wrap i { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--c-muted); font-size: 15px; }
+  .search-wrap input { padding-left: 34px; }
+
+  /* Progress bar */
+  .progress { height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden; }
+  .progress-bar { height: 100%; border-radius: 3px; transition: width .3s; }
+
+  /* Whatsapp btn */
+  .btn-wa { background: #25d366; color: #fff; border: none; }
+  .btn-wa:hover { background: #128c7e; }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 4px; margin-bottom: 20px; border-bottom: 1px solid var(--c-border); padding-bottom: 0; }
+  .tab { padding: 9px 16px; font-size: 13px; font-weight: 500; color: var(--c-muted); cursor: pointer; border: none; background: none; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+  .tab:hover { color: var(--c-text); }
+  .tab.active { color: var(--c-accent); border-bottom-color: var(--c-accent); }
+
+  /* Toast */
+  .toast-container { position: fixed; bottom: 24px; right: 24px; z-index: 2000; display: flex; flex-direction: column; gap: 8px; }
+  .toast { background: #1e293b; color: #f1f5f9; padding: 12px 16px; border-radius: var(--radius-sm); font-size: 13px; display: flex; align-items: center; gap: 10px; animation: slideIn .2s ease; box-shadow: 0 4px 12px rgba(0,0,0,.2); max-width: 320px; }
+  .toast.success { background: var(--c-success); }
+  .toast.warn { background: var(--c-warn); }
+  .toast.danger { background: var(--c-danger); }
+  @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+// ─── Sample data ───────────────────────────────────────────────────────────
+const today = new Date();
+const fmt = (d) => d.toISOString().split('T')[0];
+const addDays = (d, n) => { const r = new Date(d); r.setDate(r.getDate()+n); return r; };
+
+const VACCINES_LIST = ['COVID-19 Pfizer','COVID-19 Moderna','Influenza','Hepatitis B','Tetáno (DPT)','MMR (Triple Viral)','Varicela','Fiebre Amarilla','Neumococo','Meningococo'];
+
+const initPatients = [
+  { id:1, nombre:'María', apellidos:'González López', whatsapp:'+50370000001', created:'2024-01-15' },
+  { id:2, nombre:'Carlos', apellidos:'Ramírez Soto', whatsapp:'+50370000002', created:'2024-02-20' },
+  { id:3, nombre:'Ana', apellidos:'Martínez Fuentes', whatsapp:'+50370000003', created:'2024-03-05' },
+  { id:4, nombre:'José', apellidos:'Hernández Cruz', whatsapp:'+50370000004', created:'2024-04-10' },
+  { id:5, nombre:'Lucía', apellidos:'Pérez Vides', whatsapp:'+50370000005', created:'2024-05-18' },
+];
+
+const initVaccines = [
+  { id:1, patientId:1, vacuna:'COVID-19 Pfizer', fechaAplicacion: fmt(addDays(today,-180)), horaAplicacion:'09:00', proximaFecha: fmt(addDays(today,-30)), estado:'vencida', valor:45.00, notas:'Dosis 1' },
+  { id:2, patientId:2, vacuna:'Influenza', fechaAplicacion: fmt(addDays(today,-10)), horaAplicacion:'10:30', proximaFecha: fmt(addDays(today,355)), estado:'cumplida', valor:25.00, notas:'' },
+  { id:3, patientId:3, vacuna:'Hepatitis B', fechaAplicacion: fmt(addDays(today,-5)), horaAplicacion:'08:00', proximaFecha: fmt(addDays(today,25)), estado:'cumplida', valor:35.00, notas:'Dosis 2' },
+  { id:4, patientId:4, vacuna:'Tetáno (DPT)', fechaAplicacion: fmt(addDays(today,-200)), horaAplicacion:'11:00', proximaFecha: fmt(addDays(today,-20)), estado:'vencida', valor:18.00, notas:'' },
+  { id:5, patientId:5, vacuna:'MMR (Triple Viral)', fechaAplicacion: fmt(addDays(today,-3)), horaAplicacion:'14:00', proximaFecha: fmt(addDays(today,27)), estado:'cumplida', valor:60.00, notas:'' },
+  { id:6, patientId:1, vacuna:'Influenza', fechaAplicacion: fmt(addDays(today,1)), horaAplicacion:'09:00', proximaFecha: fmt(addDays(today,366)), estado:'pendiente', valor:25.00, notas:'Recordatorio enviado' },
+  { id:7, patientId:2, vacuna:'Hepatitis B', fechaAplicacion: fmt(addDays(today,3)), horaAplicacion:'11:30', proximaFecha: fmt(addDays(today,33)), estado:'pendiente', valor:35.00, notas:'' },
+];
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
+const getInitials = (n,a) => ((n||'')[0]+(a||'')[0]).toUpperCase();
+const avatarColors = ['#2563eb','#7c3aed','#0891b2','#16a34a','#d97706','#dc2626'];
+const avatarBg = (id) => avatarColors[id % avatarColors.length];
+
+function StatusBadge({estado}) {
+  if (estado==='cumplida') return <span className="badge badge-success"><i className="ti ti-check"></i>Cumplida</span>;
+  if (estado==='vencida') return <span className="badge badge-danger"><i className="ti ti-alert-circle"></i>Vencida</span>;
+  return <span className="badge badge-warn"><i className="ti ti-clock"></i>Pendiente</span>;
+}
+
+function WaBtns({patient, vacuna}) {
+  const msg = encodeURIComponent(`Hola ${patient?.nombre}, le recordamos su próxima vacuna: *${vacuna?.vacuna}* programada para el ${vacuna?.proximaFecha}. Por favor confirme su asistencia. Clínica VacunaControl.`);
+  const url = `https://wa.me/${(patient?.whatsapp||'').replace(/\D/g,'')}?text=${msg}`;
+  return (
+    <a href={url} target="_blank" rel="noopener" className="btn btn-sm btn-wa">
+      <i className="ti ti-brand-whatsapp"></i> WhatsApp
+    </a>
+  );
+}
+
+// ─── Toast ──────────────────────────────────────────────────────────────────
+function ToastContainer({toasts}) {
+  return <div className="toast-container">{toasts.map(t=>(
+    <div key={t.id} className={`toast ${t.type||''}`}>
+      <i className={`ti ti-${t.type==='success'?'check':t.type==='danger'?'x':'info-circle'}`}></i>
+      {t.msg}
+    </div>
+  ))}</div>;
+}
+
+// ─── Modal: Nuevo Paciente ──────────────────────────────────────────────────
+function PatientModal({onClose, onSave, patient=null}) {
+  const [form, setForm] = useState(patient || {nombre:'',apellidos:'',whatsapp:''});
+  const set = (k,v) => setForm(p=>({...p,[k]:v}));
+  return (
+    <div className="modal-overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
+      <div className="modal">
+        <div className="modal-header">
+          <span className="modal-title">{patient?'Editar paciente':'Nuevo paciente'}</span>
+          <button className="modal-close" onClick={onClose}><i className="ti ti-x" style={{fontSize:18}}></i></button>
+        </div>
+        <div className="form-row">
+          <div className="form-group">
+            <label className="form-label">Nombre</label>
+            <input className="form-input" value={form.nombre} onChange={e=>set('nombre',e.target.value)} placeholder="Nombre" />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Apellidos</label>
+            <input className="form-input" value={form.apellidos} onChange={e=>set('apellidos',e.target.value)} placeholder="Apellidos" />
+          </div>
+        </div>
+        <div className="form-group">
+          <label className="form-label">WhatsApp</label>
+          <input className="form-input" value={form.whatsapp} onChange={e=>set('whatsapp',e.target.value)} placeholder="+503 7000 0000" />
+        </div>
+        <div className="modal-footer">
+          <button className="btn btn-outline" onClick={onClose}>Cancelar</button>
+          <button className="btn btn-primary" onClick={()=>{if(form.nombre&&form.apellidos){onSave(form);onClose();}}}>
+            <i className="ti ti-check"></i> {patient?'Guardar cambios':'Registrar paciente'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Modal: Nueva Vacuna ─────────────────────────────────────────────────────
+function VaccineModal({onClose, onSave, patients}) {
+  const [form, setForm] = useState({patientId:'',vacuna:'',fechaAplicacion:fmt(today),horaAplicacion:'09:00',proximaFecha:'',estado:'pendiente',valor:'',notas:''});
+  const set = (k,v) => setForm(p=>({...p,[k]:v}));
+  const valid = form.patientId && form.vacuna && form.fechaAplicacion;
+  return (
+    <div className="modal-overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
+      <div className="modal">
+        <div className="modal-header">
+          <span className="modal-title">Registrar vacuna</span>
+          <button className="modal-close" onClick={onClose}><i className="ti ti-x" style={{fontSize:18}}></i></button>
+        </div>
+        <div className="form-group">
+          <label className="form-label">Paciente</label>
+          <select className="form-input" value={form.patientId} onChange={e=>set('patientId',+e.target.value)}>
+            <option value="">Seleccionar paciente...</option>
+            {patients.map(p=><option key={p.id} value={p.id}>{p.nombre} {p.apellidos}</option>)}
+          </select>
+        </div>
+        <div className="form-group">
+          <label className="form-label">Vacuna</label>
+          <select className="form-input" value={form.vacuna} onChange={e=>set('vacuna',e.target.value)}>
+            <option value="">Seleccionar vacuna...</option>
+            {VACCINES_LIST.map(v=><option key={v} value={v}>{v}</option>)}
+          </select>
+        </div>
+        <div className="form-row">
+          <div className="form-group">
+            <label className="form-label">Fecha de aplicación</label>
+            <input type="date" className="form-input" value={form.fechaAplicacion} onChange={e=>set('fechaAplicacion',e.target.value)} />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Hora</label>
+            <input type="time" className="form-input" value={form.horaAplicacion} onChange={e=>set('horaAplicacion',e.target.value)} />
+          </div>
+        </div>
+        <div className="form-row">
+          <div className="form-group">
+            <label className="form-label">Próxima dosis</label>
+            <input type="date" className="form-input" value={form.proximaFecha} onChange={e=>set('proximaFecha',e.target.value)} />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Estado</label>
+            <select className="form-input" value={form.estado} onChange={e=>set('estado',e.target.value)}>
+              <option value="pendiente">Pendiente</option>
+              <option value="cumplida">Cumplida</option>
+              <option value="vencida">Vencida</option>
+            </select>
+          </div>
+        </div>
+        <div className="form-row">
+          <div className="form-group">
+            <label className="form-label">Valor ($)</label>
+            <input type="number" className="form-input" value={form.valor} onChange={e=>set('valor',e.target.value)} placeholder="0.00" />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Notas</label>
+            <input className="form-input" value={form.notas} onChange={e=>set('notas',e.target.value)} placeholder="Opcional" />
+          </div>
+        </div>
+        <div className="modal-footer">
+          <button className="btn btn-outline" onClick={onClose}>Cancelar</button>
+          <button className="btn btn-primary" disabled={!valid} onClick={()=>{onSave(form);onClose();}}>
+            <i className="ti ti-needle"></i> Registrar vacuna
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Dashboard View ─────────────────────────────────────────────────────────
+function DashboardView({patients, vaccines, onAddVaccine, toast}) {
+  const vencidas = vaccines.filter(v=>v.estado==='vencida');
+  const proximas = vaccines.filter(v=>{
+    if (!v.proximaFecha) return false;
+    const d = new Date(v.proximaFecha+' 00:00'); // avoids TZ shift
+    const diff = (d-today)/(1000*60*60*24);
+    return diff>0 && diff<=30 && v.estado!=='vencida';
+  });
+  const cumplidas = vaccines.filter(v=>v.estado==='cumplida');
+  const totalValor = vaccines.filter(v=>v.estado==='cumplida').reduce((s,v)=>s+(+v.valor||0),0);
+
+  // Weekly schedule – current week Mon→Sun
+  const weekStart = new Date(today);
+  const dow = today.getDay(); // 0=Sun
+  weekStart.setDate(today.getDate() - (dow===0?6:dow-1));
+  const weekDays = Array.from({length:7},(_,i)=>addDays(weekStart,i));
+  const hours = ['08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00'];
+
+  const weekVaccines = vaccines.filter(v=>{
+    if (!v.fechaAplicacion) return false;
+    const d = new Date(v.fechaAplicacion);
+    return d>=weekStart && d<=addDays(weekStart,6);
+  });
+
+  const getAppts = (day, hour) => weekVaccines.filter(v=>{
+    if (!v.fechaAplicacion) return false;
+    const d = new Date(v.fechaAplicacion+' 00:00');
+    const dayMatch = fmt(d)===fmt(day);
+    const hourMatch = (v.horaAplicacion||'00:00').startsWith(hour.split(':')[0]);
+    return dayMatch && hourMatch;
+  });
+
+  const dayNames = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+  const months = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+
+  return (
+    <div>
+      <div className="topbar">
+        <div>
+          <h2>Dashboard</h2>
+          <p>Resumen general — {today.toLocaleDateString('es-SV',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</p>
+        </div>
+        <button className="btn btn-primary" onClick={onAddVaccine}><i className="ti ti-plus"></i> Nueva vacuna</button>
+      </div>
+
+      {/* Alerts */}
+      {vencidas.length>0 && (
+        <div style={{marginBottom:20}}>
+          {vencidas.slice(0,3).map(v=>{
+            const p = patients.find(x=>x.id===v.patientId);
+            return (
+              <div key={v.id} className="alert alert-danger">
+                <i className="ti ti-alert-triangle"></i>
+                <div className="alert-body">
+                  <strong>Vacuna vencida — {p?.nombre} {p?.apellidos}</strong>
+                  <p>{v.vacuna} · venció el {v.proximaFecha} · Paciente no se presentó</p>
+                </div>
+                {p && <WaBtns patient={p} vacuna={v} />}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <div className="metrics-grid">
+        <div className="metric-card accent">
+          <div className="metric-label">Pacientes registrados</div>
+          <div className="metric-value">{patients.length}</div>
+          <div className="metric-sub">total en sistema</div>
+        </div>
+        <div className="metric-card success">
+          <div className="metric-label">Vacunas cumplidas</div>
+          <div className="metric-value">{cumplidas.length}</div>
+          <div className="metric-sub">de {vaccines.length} registradas</div>
+        </div>
+        <div className="metric-card danger">
+          <div className="metric-label">Vacunas vencidas</div>
+          <div className="metric-value">{vencidas.length}</div>
+          <div className="metric-sub">pacientes ausentes</div>
+        </div>
+        <div className="metric-card warn">
+          <div className="metric-label">Ingresos cobrados</div>
+          <div className="metric-value">${totalValor.toFixed(2)}</div>
+          <div className="metric-sub">vacunas cumplidas</div>
+        </div>
+      </div>
+
+      {/* Proximas 30 dias */}
+      {proximas.length>0 && (
+        <div className="card" style={{marginBottom:24}}>
+          <div className="card-header">
+            <span className="card-title"><i className="ti ti-bell" style={{marginRight:6,color:'var(--c-warn)'}}></i>Próximas vacunas — 30 días</span>
+            <span className="badge badge-warn">{proximas.length} pendientes</span>
+          </div>
+          <div className="table-wrap">
+            <table>
+              <thead><tr><th>Paciente</th><th>Vacuna</th><th>Próxima fecha</th><th>Días restantes</th><th>Acción</th></tr></thead>
+              <tbody>
+                {proximas.map(v=>{
+                  const p=patients.find(x=>x.id===v.patientId);
+                  const dias=Math.ceil((new Date(v.proximaFecha+' 00:00')-today)/(1000*60*60*24));
+                  return (
+                    <tr key={v.id}>
+                      <td><div style={{display:'flex',alignItems:'center',gap:8}}>
+                        <div className="avatar" style={{background:avatarBg(v.patientId)+'22',color:avatarBg(v.patientId)}}>{getInitials(p?.nombre,p?.apellidos)}</div>
+                        {p?.nombre} {p?.apellidos}
+                      </div></td>
+                      <td>{v.vacuna}</td>
+                      <td>{v.proximaFecha}</td>
+                      <td><span className={`badge ${dias<=7?'badge-danger':dias<=14?'badge-warn':'badge-info'}`}>{dias} días</span></td>
+                      <td>{p && <WaBtns patient={p} vacuna={v} />}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Weekly schedule */}
+      <div className="card">
+        <div className="card-header">
+          <span className="card-title"><i className="ti ti-calendar-week" style={{marginRight:6,color:'var(--c-accent)'}}></i>Agenda semanal</span>
+          <span style={{fontSize:12,color:'var(--c-muted)'}}>
+            {fmt(weekStart)} — {fmt(addDays(weekStart,6))}
+          </span>
+        </div>
+        <div style={{overflowX:'auto'}}>
+          <div className="schedule-grid" style={{minWidth:600}}>
+            <div className="sch-header">Hora</div>
+            {weekDays.map((d,i)=>(
+              <div key={i} className="sch-header" style={{background:fmt(d)===fmt(today)?'#eff6ff':'',color:fmt(d)===fmt(today)?'#2563eb':''}}>
+                {dayNames[i]}<br/><span style={{fontWeight:400}}>{d.getDate()} {months[d.getMonth()]}</span>
+              </div>
+            ))}
+            {hours.map(h=>(
+              <React.Fragment key={h}>
+                <div className="sch-time">{h}</div>
+                {weekDays.map((d,di)=>{
+                  const appts=getAppts(d,h);
+                  return (
+                    <div key={di} className="sch-cell" style={{background:fmt(d)===fmt(today)?'#eff6ff33':''}}>
+                      {appts.map(a=>{
+                        const p=patients.find(x=>x.id===a.patientId);
+                        return (
+                          <div key={a.id} className={`sch-appt ${a.estado==='vencida'?'vencida':a.estado==='pendiente'?'pendiente':''}`} title={`${p?.nombre} ${p?.apellidos} — ${a.vacuna}`}>
+                            {p?.nombre} · {a.vacuna.split(' ').slice(0,2).join(' ')}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+              </React.Fragment>
+            ))}
+          </div>
+        </div>
+        <div style={{display:'flex',gap:16,marginTop:12,fontSize:12,color:'var(--c-muted)'}}>
+          <span><span style={{display:'inline-block',width:12,height:12,background:'#dbeafe',border:'2px solid #2563eb',borderRadius:2,marginRight:4,verticalAlign:'middle'}}></span>Cumplida</span>
+          <span><span style={{display:'inline-block',width:12,height:12,background:'#fef9c3',border:'2px solid #ca8a04',borderRadius:2,marginRight:4,verticalAlign:'middle'}}></span>Pendiente</span>
+          <span><span style={{display:'inline-block',width:12,height:12,background:'#fee2e2',border:'2px solid #dc2626',borderRadius:2,marginRight:4,verticalAlign:'middle'}}></span>Vencida</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Vacunas View ────────────────────────────────────────────────────────────
+function VaccinasView({patients, vaccines, onAddVaccine, onDelete, toast}) {
+  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState('all');
+  const filtered = vaccines.filter(v=>{
+    const p=patients.find(x=>x.id===v.patientId);
+    const term=search.toLowerCase();
+    const matchSearch=!search||[p?.nombre,p?.apellidos,v.vacuna].some(s=>(s||'').toLowerCase().includes(term));
+    const matchFilter=filter==='all'||v.estado===filter;
+    return matchSearch&&matchFilter;
+  });
+
+  return (
+    <div>
+      <div className="topbar">
+        <div><h2>Vacunas</h2><p>{vaccines.length} registros totales</p></div>
+        <button className="btn btn-primary" onClick={onAddVaccine}><i className="ti ti-plus"></i> Nueva vacuna</button>
+      </div>
+      <div className="card">
+        <div style={{display:'flex',gap:12,marginBottom:16,alignItems:'center',flexWrap:'wrap'}}>
+          <div className="search-wrap" style={{flex:'1 1 200px'}}>
+            <i className="ti ti-search"></i>
+            <input className="form-input" style={{paddingLeft:34}} value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar paciente o vacuna..." />
+          </div>
+          {['all','cumplida','pendiente','vencida'].map(f=>(
+            <button key={f} className={`btn ${filter===f?'btn-primary':'btn-outline'}`} onClick={()=>setFilter(f)}>
+              {f==='all'?'Todos':f.charAt(0).toUpperCase()+f.slice(1)}
+            </button>
+          ))}
+        </div>
+        <div className="table-wrap">
+          <table>
+            <thead><tr><th>Paciente</th><th>Vacuna</th><th>Aplicación</th><th>Hora</th><th>Próxima cita</th><th>Estado</th><th>Valor</th><th>Acciones</th></tr></thead>
+            <tbody>
+              {filtered.length===0 && <tr><td colSpan={8} style={{textAlign:'center',color:'var(--c-muted)',padding:32}}>Sin resultados</td></tr>}
+              {filtered.map(v=>{
+                const p=patients.find(x=>x.id===v.patientId);
+                return (
+                  <tr key={v.id}>
+                    <td><div style={{display:'flex',alignItems:'center',gap:8}}>
+                      <div className="avatar" style={{background:avatarBg(v.patientId)+'22',color:avatarBg(v.patientId)}}>{getInitials(p?.nombre,p?.apellidos)}</div>
+                      <div><div style={{fontWeight:500,fontSize:13}}>{p?.nombre} {p?.apellidos}</div><div style={{fontSize:11,color:'var(--c-muted)'}}>{p?.whatsapp}</div></div>
+                    </div></td>
+                    <td style={{fontWeight:500}}>{v.vacuna}</td>
+                    <td>{v.fechaAplicacion}</td>
+                    <td>{v.horaAplicacion}</td>
+                    <td>{v.proximaFecha||'—'}</td>
+                    <td><StatusBadge estado={v.estado}/></td>
+                    <td style={{fontWeight:500}}>{v.valor?`$${(+v.valor).toFixed(2)}`:'—'}</td>
+                    <td>
+                      <div style={{display:'flex',gap:6',flexWrap:'wrap'}}>
+                        {p && <WaBtns patient={p} vacuna={v} />}
+                        <button className="btn btn-sm btn-danger btn-icon" title="Eliminar" onClick={()=>{if(confirm('¿Eliminar este registro?'))onDelete(v.id);}}>
+                          <i className="ti ti-trash"></i>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Patients View ───────────────────────────────────────────────────────────
+function PatientsView({patients, vaccines, onAdd, onDelete, toast}) {
+  const [search, setSearch] = useState('');
+  const [modal, setModal] = useState(false);
+  const filtered = patients.filter(p=>{
+    const t=search.toLowerCase();
+    return !t||[p.nombre,p.apellidos,p.whatsapp].some(s=>(s||'').toLowerCase().includes(t));
+  });
+  return (
+    <div>
+      <div className="topbar">
+        <div><h2>Pacientes</h2><p>{patients.length} registrados</p></div>
+        <button className="btn btn-primary" onClick={()=>setModal(true)}><i className="ti ti-user-plus"></i> Nuevo paciente</button>
+      </div>
+      {modal && <PatientModal onClose={()=>setModal(false)} onSave={p=>{onAdd(p);toast('Paciente registrado','success');}} />}
+      <div className="card">
+        <div style={{marginBottom:16}} className="search-wrap">
+          <i className="ti ti-search"></i>
+          <input className="form-input" style={{paddingLeft:34}} value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar por nombre o WhatsApp..." />
+        </div>
+        <div className="table-wrap">
+          <table>
+            <thead><tr><th>Paciente</th><th>WhatsApp</th><th>Vacunas</th><th>Última vacuna</th><th>Próxima cita</th><th>Estado</th><th>Acciones</th></tr></thead>
+            <tbody>
+              {filtered.map(p=>{
+                const pvacs=vaccines.filter(v=>v.patientId===p.id);
+                const last=pvacs.filter(v=>v.estado==='cumplida').sort((a,b)=>b.fechaAplicacion.localeCompare(a.fechaAplicacion))[0];
+                const next=pvacs.filter(v=>v.proximaFecha&&v.estado!=='vencida').sort((a,b)=>a.proximaFecha.localeCompare(b.proximaFecha))[0];
+                const hasVencida=pvacs.some(v=>v.estado==='vencida');
+                const msg=encodeURIComponent(`Hola ${p.nombre}, esperamos que se encuentre bien. Le recordamos que tiene una vacuna pendiente en nuestra clínica. Por favor contáctenos para reagendar. Clínica VacunaControl.`);
+                return (
+                  <tr key={p.id}>
+                    <td><div style={{display:'flex',alignItems:'center',gap:10}}>
+                      <div className="avatar" style={{background:avatarBg(p.id)+'22',color:avatarBg(p.id),fontSize:14,width:38,height:38}}>{getInitials(p.nombre,p.apellidos)}</div>
+                      <div><div style={{fontWeight:600,fontSize:14}}>{p.nombre} {p.apellidos}</div><div style={{fontSize:11,color:'var(--c-muted)'}}>Desde {p.created}</div></div>
+                    </div></td>
+                    <td>{p.whatsapp}</td>
+                    <td><span className="badge badge-info">{pvacs.length}</span></td>
+                    <td>{last?<span>{last.vacuna}<br/><span style={{fontSize:11,color:'var(--c-muted)'}}>{last.fechaAplicacion}</span></span>:'—'}</td>
+                    <td>{next?<span>{next.proximaFecha}<br/><span style={{fontSize:11,color:'var(--c-muted)'}}>{next.vacuna}</span></span>:'—'}</td>
+                    <td>{hasVencida?<span className="badge badge-danger">Alerta</span>:<span className="badge badge-success">Al día</span>}</td>
+                    <td>
+                      <div style={{display:'flex',gap:6}}>
+                        <a href={`https://wa.me/${(p.whatsapp||'').replace(/\D/g,'')}?text=${msg}`} target="_blank" rel="noopener" className="btn btn-sm btn-wa"><i className="ti ti-brand-whatsapp"></i></a>
+                        <button className="btn btn-sm btn-danger btn-icon" title="Eliminar" onClick={()=>{if(confirm('¿Eliminar paciente y sus vacunas?'))onDelete(p.id);}}>
+                          <i className="ti ti-trash"></i>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Alerts View ─────────────────────────────────────────────────────────────
+function AlertsView({patients, vaccines}) {
+  const vencidas = vaccines.filter(v=>v.estado==='vencida');
+  const proximas7 = vaccines.filter(v=>{
+    if (!v.proximaFecha||v.estado==='vencida') return false;
+    const dias=Math.ceil((new Date(v.proximaFecha+' 00:00')-today)/(1000*60*60*24));
+    return dias>=0&&dias<=7;
+  });
+  const proximas30 = vaccines.filter(v=>{
+    if (!v.proximaFecha||v.estado==='vencida') return false;
+    const dias=Math.ceil((new Date(v.proximaFecha+' 00:00')-today)/(1000*60*60*24));
+    return dias>7&&dias<=30;
+  });
+
+  const Row = ({v, type}) => {
+    const p = patients.find(x=>x.id===v.patientId);
+    const dias = v.proximaFecha ? Math.ceil((new Date(v.proximaFecha+' 00:00')-today)/(1000*60*60*24)) : null;
+    return (
+      <div className={`alert ${type==='vencida'?'alert-danger':'alert-warn'}`} style={{marginBottom:8}}>
+        <i className={`ti ti-${type==='vencida'?'alert-triangle':'bell'}`}></i>
+        <div className="alert-body">
+          <strong>{p?.nombre} {p?.apellidos} — {v.vacuna}</strong>
+          <p>{type==='vencida'?`Venció el ${v.proximaFecha||v.fechaAplicacion} — paciente no se presentó`:`Próxima en ${dias} días · ${v.proximaFecha}`}</p>
+        </div>
+        {p && <WaBtns patient={p} vacuna={v} />}
+      </div>
+    );
+  };
+
+  return (
+    <div>
+      <div className="topbar"><div><h2>Avisos y alertas</h2><p>{vencidas.length+proximas7.length+proximas30.length} notificaciones activas</p></div></div>
+      {vencidas.length>0 && <>
+        <h3 style={{fontSize:14,fontWeight:600,color:'var(--c-danger)',marginBottom:12,display:'flex',alignItems:'center',gap:6}}><i className="ti ti-alert-triangle"></i> Vacunas vencidas ({vencidas.length})</h3>
+        {vencidas.map(v=><Row key={v.id} v={v} type="vencida"/>)}
+        <div style={{height:24}}/>
+      </>}
+      {proximas7.length>0 && <>
+        <h3 style={{fontSize:14,fontWeight:600,color:'var(--c-warn)',marginBottom:12,display:'flex',alignItems:'center',gap:6}}><i className="ti ti-bell-ringing"></i> Próximas esta semana ({proximas7.length})</h3>
+        {proximas7.map(v=><Row key={v.id} v={v} type="proxima"/>)}
+        <div style={{height:24}}/>
+      </>}
+      {proximas30.length>0 && <>
+        <h3 style={{fontSize:14,fontWeight:600,color:'var(--c-info)',marginBottom:12,display:'flex',alignItems:'center',gap:6}}><i className="ti ti-clock"></i> Próximas en 30 días ({proximas30.length})</h3>
+        {proximas30.map(v=><Row key={v.id} v={v} type="proxima"/>)}
+      </>}
+      {vencidas.length===0&&proximas7.length===0&&proximas30.length===0 && (
+        <div style={{textAlign:'center',padding:'60px 0',color:'var(--c-muted)'}}>
+          <i className="ti ti-circle-check" style={{fontSize:48,display:'block',marginBottom:12}}></i>
+          <p style={{fontWeight:500}}>Sin alertas activas</p>
+          <p style={{fontSize:13}}>Todos los pacientes están al día</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── APP ─────────────────────────────────────────────────────────────────────
+function App() {
+  const [view, setView] = useState('dashboard');
+  const [patients, setPatients] = useState(initPatients);
+  const [vaccines, setVaccines] = useState(initVaccines);
+  const [showVaccineModal, setShowVaccineModal] = useState(false);
+  const [toasts, setToasts] = useState([]);
+  const nextId = useRef(100);
+
+  const addToast = (msg, type='') => {
+    const id = Date.now();
+    setToasts(t=>[...t,{id,msg,type}]);
+    setTimeout(()=>setToasts(t=>t.filter(x=>x.id!==id)),3500);
+  };
+
+  const addPatient = (p) => setPatients(prev=>[...prev,{...p,id:nextId.current++,created:fmt(today)}]);
+  const deletePatient = (id) => { setPatients(p=>p.filter(x=>x.id!==id)); setVaccines(v=>v.filter(x=>x.patientId!==id)); addToast('Paciente eliminado','warn'); };
+  const addVaccine = (v) => { setVaccines(prev=>[...prev,{...v,id:nextId.current++,valor:+(v.valor)||0}]); addToast('Vacuna registrada','success'); };
+  const deleteVaccine = (id) => { setVaccines(v=>v.filter(x=>x.id!==id)); addToast('Registro eliminado','warn'); };
+
+  const vencCount = vaccines.filter(v=>v.estado==='vencida').length;
+  const alertCount = vaccines.filter(v=>{
+    if (!v.proximaFecha||v.estado==='vencida') return false;
+    return Math.ceil((new Date(v.proximaFecha+' 00:00')-today)/(1000*60*60*24))<=7;
+  }).length + vencCount;
+
+  const navItems = [
+    {id:'dashboard',icon:'ti-layout-dashboard',label:'Dashboard'},
+    {id:'vaccines',icon:'ti-needle',label:'Vacunas'},
+    {id:'patients',icon:'ti-users',label:'Pacientes'},
+    {id:'alerts',icon:'ti-bell',label:'Avisos', badge:alertCount},
+  ];
+
+  return (
+    <>
+      <div className="sidebar">
+        <div className="sidebar-logo">
+          <h1><i className="ti ti-shield-check" style={{marginRight:6}}></i>VacunaControl</h1>
+          <p>Gestión de vacunas clínica</p>
+        </div>
+        <nav className="sidebar-nav">
+          {navItems.map(n=>(
+            <button key={n.id} className={`nav-item ${view===n.id?'active':''}`} onClick={()=>setView(n.id)}>
+              <i className={`ti ${n.icon}`}></i>
+              <span style={{flex:1}}>{n.label}</span>
+              {n.badge>0 && <span style={{background:'#dc2626',color:'#fff',borderRadius:10,padding:'1px 7px',fontSize:10,fontWeight:600}}>{n.badge}</span>}
+            </button>
+          ))}
+        </nav>
+        <div style={{padding:'16px 20px',borderTop:'1px solid #334155',fontSize:11,color:'#475569'}}>
+          <div style={{fontWeight:500,color:'#94a3b8',marginBottom:4}}>VacunaControl v1.0</div>
+          <div>© 2025 Tu clínica</div>
+        </div>
+      </div>
+
+      <main className="main">
+        {view==='dashboard' && <DashboardView patients={patients} vaccines={vaccines} onAddVaccine={()=>setShowVaccineModal(true)} toast={addToast}/>}
+        {view==='vaccines' && <VaccinasView patients={patients} vaccines={vaccines} onAddVaccine={()=>setShowVaccineModal(true)} onDelete={deleteVaccine} toast={addToast}/>}
+        {view==='patients' && <PatientsView patients={patients} vaccines={vaccines} onAdd={addPatient} onDelete={deletePatient} toast={addToast}/>}
+        {view==='alerts' && <AlertsView patients={patients} vaccines={vaccines}/>}
+      </main>
+
+      {showVaccineModal && <VaccineModal patients={patients} onClose={()=>setShowVaccineModal(false)} onSave={addVaccine}/>}
+      <ToastContainer toasts={toasts}/>
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
